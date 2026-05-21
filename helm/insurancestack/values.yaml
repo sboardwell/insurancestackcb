@@ -1,0 +1,299 @@
+# Default values for insurancestack
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Global settings
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# Deployment configuration for path-based routing
+deployment:
+  # Base domain for ingress (e.g., insurancestack.se-main-demo.sa-demo.beescloud.com)
+  baseDomain: "insurancestack.se-main-demo.sa-demo.beescloud.com"
+  # Organization/instance name (e.g., CB-InsuranceStack) - used for URL path /{org}/{env}
+  organizationName: ""
+  # Environment name (e.g., insurance-stack-dev) - used for URL path /{org}/{env}
+  environmentName: ""
+
+# Authentication configuration
+auth:
+  # JWT secret for token signing (MUST be changed in production)
+  jwtSecret: "dev-secret-key-change-in-production-use-a-long-random-string"
+  # Demo credentials (change in production)
+  username: "demo@insurancestack.com"
+  password: "demo123"
+
+# CloudBees Feature Management
+cloudbees:
+  # API key for CloudBees Feature Management (used by backend services)
+  fmKey: "local-mode"
+  environment: "production"
+
+# Feature Management for Web UI (runtime config)
+featureFlags:
+  enabled: true
+  secretName: insurancestack-fm
+  secretKey: FM_TOKEN
+  mountPath: /usr/share/nginx/html/config
+  fileName: fm.json
+  createSecret: true
+  fmKey: ""  # Will be set by deploy workflow
+
+# Insurance UI (React)
+insuranceUI:
+  enabled: true
+  replicaCount: 2
+  # Governance tier: standard
+  governanceTier: "standard"
+  # Show demo credentials on login page (set to false in production)
+  showDemoCredentials: false
+  image:
+    repository: insurancestack/insurance-ui
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 3000
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Hosts configuration - will be populated by workflow based on deployment.baseDomain
+    hosts: []
+    # Example:
+    # - host: insurancestack.se-main-demo.sa-demo.beescloud.com
+    #   paths:
+    #     - path: /CB-InsuranceStack/insurance-stack-dev
+    #       pathType: Prefix
+    tls: []
+    # Example:
+    # - secretName: insurancestack-tls
+    #   hosts:
+    #     - insurancestack.se-main-demo.sa-demo.beescloud.com
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Policy Service (Go) - Port 8001
+# Governance tier: standard
+policyService:
+  enabled: true
+  replicaCount: 2
+  governanceTier: "standard"
+  image:
+    repository: insurancestack/policy-service
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  service:
+    type: ClusterIP
+    port: 8001
+    targetPort: 8001
+  env:
+    # Data path for policy data
+    dataPath: "/app/data"
+    # Feature flags
+    featureApprovalWorkflow: "true"
+    featureRiskAssessment: "true"
+    featureMultiProduct: "false"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 8001
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: 8001
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# Claims Service (Go) - Port 8002
+# Governance tier: governed (high governance)
+claimsService:
+  enabled: true
+  replicaCount: 2
+  governanceTier: "governed"
+  governanceLevel: "high"
+  image:
+    repository: insurancestack/claims-service
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  service:
+    type: ClusterIP
+    port: 8002
+    targetPort: 8002
+  env:
+    # Data path for claims data
+    dataPath: "/app/data"
+    # Feature flags
+    featureAutoApproval: "false"
+    featureFraudDetection: "true"
+    featureAdvancedAnalytics: "true"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 8002
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: 8002
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# Pricing Engine (Go) - Port 8003
+# Governance tier: fast-path (minimal governance)
+pricingEngine:
+  enabled: true
+  replicaCount: 2
+  governanceTier: "fast-path"
+  governanceLevel: "minimal"
+  image:
+    repository: insurancestack/pricing-engine
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  service:
+    type: ClusterIP
+    port: 8003
+    targetPort: 8003
+  env:
+    # Data path for pricing data
+    dataPath: "/app/data"
+    # Feature flags
+    featureDynamicPricing: "true"
+    featureRealTimeQuotes: "true"
+    featureBulkDiscount: "false"
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 8003
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: 8003
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# Customer Service (Go) - Port 8004
+# Governance tier: standard
+customerService:
+  enabled: true
+  replicaCount: 2
+  governanceTier: "standard"
+  image:
+    repository: insurancestack/customer-service
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  service:
+    type: ClusterIP
+    port: 8004
+    targetPort: 8004
+  env:
+    # Data path for customer data
+    dataPath: "/app/data"
+    # Feature flags
+    featureKYC: "true"
+    featureDocumentUpload: "true"
+    featureCommunicationPrefs: "false"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 8004
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: 8004
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# Payments Service (Go) - Port 8005
+# Governance tier: governed (highest risk)
+paymentsService:
+  enabled: true
+  replicaCount: 2
+  governanceTier: "governed"
+  governanceLevel: "highest-risk"
+  image:
+    repository: insurancestack/payments-service
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  service:
+    type: ClusterIP
+    port: 8005
+    targetPort: 8005
+  env:
+    # Data path for payment data
+    dataPath: "/app/data"
+    # Feature flags
+    featureRecurringPayments: "true"
+    featureMultiCurrency: "false"
+    featureRefundProcessing: "true"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 8005
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: 8005
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# Node selector for scheduling pods
+nodeSelector: {}
+
+# Tolerations for scheduling pods
+tolerations: []
+
+# Affinity rules for scheduling pods
+affinity: {}

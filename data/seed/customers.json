@@ -1,0 +1,146 @@
+[
+  {
+    "id": "cust-001",
+    "email": "demo@insurancestack.com",
+    "firstName": "Demo",
+    "lastName": "User",
+    "phone": "+1-555-0100",
+    "dateOfBirth": "1985-06-15",
+    "address": {
+      "street": "123 Main Street",
+      "city": "San Francisco",
+      "state": "CA",
+      "zipCode": "94102",
+      "country": "US"
+    },
+    "riskScore": 3,
+    "createdAt": "2023-01-15T10:00:00Z",
+    "updatedAt": "2024-12-13T08:30:00Z"
+  },
+  {
+    "id": "cust-002",
+    "email": "sarah.chen@insurancestack.com",
+    "firstName": "Sarah",
+    "lastName": "Chen",
+    "phone": "+44-20-7946-0958",
+    "dateOfBirth": "1990-03-22",
+    "address": {
+      "street": "45 Baker Street",
+      "city": "London",
+      "state": "",
+      "zipCode": "NW1 6XE",
+      "country": "UK"
+    },
+    "riskScore": 2,
+    "createdAt": "2023-06-20T14:22:00Z",
+    "updatedAt": "2024-12-12T18:45:00Z"
+  },
+  {
+    "id": "cust-003",
+    "email": "francois.dubois@insurancestack.com",
+    "firstName": "François",
+    "lastName": "Dubois",
+    "phone": "+33-1-42-86-82-00",
+    "dateOfBirth": "1978-11-08",
+    "address": {
+      "street": "12 Rue de Rivoli",
+      "city": "Paris",
+      "state": "",
+      "zipCode": "75001",
+      "country": "FR"
+    },
+    "riskScore": 1,
+    "createdAt": "2023-09-10T09:15:00Z",
+    "updatedAt": "2024-12-13T07:20:00Z"
+  },
+  {
+    "id": "cust-004",
+    "email": "maria.garcia@insurancestack.com",
+    "firstName": "Maria",
+    "lastName": "Garcia",
+    "phone": "+34-91-123-4567",
+    "dateOfBirth": "1982-07-30",
+    "address": {
+      "street": "Calle Gran Vía 28",
+      "city": "Madrid",
+      "state": "",
+      "zipCode": "28013",
+      "country": "ES"
+    },
+    "riskScore": 2,
+    "createdAt": "2023-11-05T16:30:00Z",
+    "updatedAt": "2024-12-10T12:15:00Z"
+  },
+  {
+    "id": "cust-005",
+    "email": "james.wilson@insurancestack.com",
+    "firstName": "James",
+    "lastName": "Wilson",
+    "phone": "+1-555-0105",
+    "dateOfBirth": "1975-12-12",
+    "address": {
+      "street": "789 Oak Avenue",
+      "city": "Austin",
+      "state": "TX",
+      "zipCode": "78701",
+      "country": "US"
+    },
+    "riskScore": 4,
+    "createdAt": "2022-03-18T11:45:00Z",
+    "updatedAt": "2024-12-11T09:00:00Z"
+  },
+  {
+    "id": "cust-006",
+    "email": "yuki.tanaka@insurancestack.com",
+    "firstName": "Yuki",
+    "lastName": "Tanaka",
+    "phone": "+81-3-1234-5678",
+    "dateOfBirth": "1988-04-25",
+    "address": {
+      "street": "1-2-3 Shibuya",
+      "city": "Tokyo",
+      "state": "",
+      "zipCode": "150-0002",
+      "country": "JP"
+    },
+    "riskScore": 1,
+    "createdAt": "2023-07-22T13:20:00Z",
+    "updatedAt": "2024-12-09T15:30:00Z"
+  },
+  {
+    "id": "cust-007",
+    "email": "emma.brown@insurancestack.com",
+    "firstName": "Emma",
+    "lastName": "Brown",
+    "phone": "+1-555-0110",
+    "dateOfBirth": "1992-09-17",
+    "address": {
+      "street": "456 Elm Street",
+      "city": "Seattle",
+      "state": "WA",
+      "zipCode": "98101",
+      "country": "US"
+    },
+    "riskScore": 2,
+    "createdAt": "2024-01-10T10:00:00Z",
+    "updatedAt": "2024-12-13T14:20:00Z"
+  },
+  {
+    "id": "cust-008",
+    "email": "lucas.mueller@insurancestack.com",
+    "firstName": "Lucas",
+    "lastName": "Müller",
+    "phone": "+49-30-12345678",
+    "dateOfBirth": "1980-05-05",
+    "address": {
+      "street": "Unter den Linden 10",
+      "city": "Berlin",
+      "state": "",
+      "zipCode": "10117",
+      "country": "DE"
+    },
+    "riskScore": 3,
+    "createdAt": "2023-04-15T08:30:00Z",
+    "updatedAt": "2024-12-08T11:45:00Z"
+  }
+]

@@ -1,0 +1,208 @@
+version: '3.9'
+
+services:
+  # ============================================================================
+  # Insurance UI (React + Vite)
+  # ============================================================================
+  insurance-ui:
+    build:
+      context: ./apps/insurance-ui
+      dockerfile: Dockerfile
+      args:
+        - VITE_ROX_API_KEY=${CLOUDBEES_FM_API_KEY}
+        - NGINX_CONFIG=nginx.local.conf
+    container_name: insurancestack-ui
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_POLICIES_URL=http://localhost:8001
+      - VITE_API_CLAIMS_URL=http://localhost:8002
+      - VITE_API_PRICING_URL=http://localhost:8003
+      - VITE_API_CUSTOMERS_URL=http://localhost:8004
+      - VITE_API_PAYMENTS_URL=http://localhost:8005
+      - VITE_ROX_API_KEY=${CLOUDBEES_FM_API_KEY}
+      - VITE_SHOW_DEMO_CREDENTIALS=true
+    depends_on:
+      - policy-service
+      - claims-service
+      - pricing-engine
+      - customer-service
+      - payments-service
+    networks:
+      - insurancestack-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # Policy Service (Go) - Core domain object
+  # ============================================================================
+  policy-service:
+    build:
+      context: .
+      dockerfile: ./apps/policy-service/Dockerfile
+    container_name: insurancestack-policy-service
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./data/seed:/data/seed:ro
+    environment:
+      - GO_ENV=development
+      - PORT=8001
+      - SERVICE_NAME=policy-service
+      - CLOUDBEES_FM_API_KEY=${CLOUDBEES_FM_API_KEY}
+      - DATA_PATH=/data/seed
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
+      - AUTH_USERNAME=${AUTH_USERNAME:-demo@insurancestack.com}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-demo123}
+      - PRICING_SERVICE_URL=http://pricing-engine:8003
+    networks:
+      - insurancestack-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ============================================================================
+  # Claims Service (Go) - Governance showcase (gated deployments)
+  # ============================================================================
+  claims-service:
+    build:
+      context: .
+      dockerfile: ./apps/claims-service/Dockerfile
+    container_name: insurancestack-claims-service
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./data/seed:/data/seed:ro
+    environment:
+      - GO_ENV=development
+      - PORT=8002
+      - SERVICE_NAME=claims-service
+      - CLOUDBEES_FM_API_KEY=${CLOUDBEES_FM_API_KEY}
+      - DATA_PATH=/data/seed
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
+      - POLICY_SERVICE_URL=http://policy-service:8001
+      - PAYMENTS_SERVICE_URL=http://payments-service:8005
+    networks:
+      - insurancestack-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ============================================================================
+  # Pricing Engine (Go) - Fast-path service (auto-deploy)
+  # ============================================================================
+  pricing-engine:
+    build:
+      context: .
+      dockerfile: ./apps/pricing-engine/Dockerfile
+    container_name: insurancestack-pricing-engine
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./data/seed:/data/seed:ro
+    environment:
+      - GO_ENV=development
+      - PORT=8003
+      - SERVICE_NAME=pricing-engine
+      - CLOUDBEES_FM_API_KEY=${CLOUDBEES_FM_API_KEY}
+      - DATA_PATH=/data/seed
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
+    networks:
+      - insurancestack-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ============================================================================
+  # Customer Service (Go) - Shared dependency
+  # ============================================================================
+  customer-service:
+    build:
+      context: .
+      dockerfile: ./apps/customer-service/Dockerfile
+    container_name: insurancestack-customer-service
+    ports:
+      - "8004:8004"
+    volumes:
+      - ./data/seed:/data/seed:ro
+    environment:
+      - GO_ENV=development
+      - PORT=8004
+      - SERVICE_NAME=customer-service
+      - CLOUDBEES_FM_API_KEY=${CLOUDBEES_FM_API_KEY}
+      - DATA_PATH=/data/seed
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
+      - AUTH_USERNAME=${AUTH_USERNAME:-demo@insurancestack.com}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-demo123}
+    networks:
+      - insurancestack-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ============================================================================
+  # Payments Service (Go) - High-risk service (restricted deployments)
+  # ============================================================================
+  payments-service:
+    build:
+      context: .
+      dockerfile: ./apps/payments-service/Dockerfile
+    container_name: insurancestack-payments-service
+    ports:
+      - "8005:8005"
+    volumes:
+      - ./data/seed:/data/seed:ro
+    environment:
+      - GO_ENV=development
+      - PORT=8005
+      - SERVICE_NAME=payments-service
+      - CLOUDBEES_FM_API_KEY=${CLOUDBEES_FM_API_KEY}
+      - DATA_PATH=/data/seed
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
+      - POLICY_SERVICE_URL=http://policy-service:8001
+      - CUSTOMER_SERVICE_URL=http://customer-service:8004
+    networks:
+      - insurancestack-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  insurancestack-network:
+    name: insurancestack-network
+    driver: bridge
+
+# ============================================================================
+# Volumes (for persistence if needed in the future)
+# ============================================================================
+volumes:
+  data-seed:
+    name: insurancestack-data-seed

@@ -1,0 +1,39 @@
+{{- if .Values.insuranceUI.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "insurancestack.fullname" . }}
+  labels:
+    {{- include "insurancestack.labels" . | nindent 4 }}
+  {{- with .Values.insuranceUI.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.insuranceUI.ingress.className }}
+  {{- if .Values.insuranceUI.ingress.tls }}
+  tls:
+    {{- range .Values.insuranceUI.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.insuranceUI.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: insurance-ui
+                port:
+                  number: {{ $.Values.insuranceUI.service.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}

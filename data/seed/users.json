@@ -1,0 +1,32 @@
+[
+  {
+    "id": "user-001",
+    "email": "demo@insurancestack.com",
+    "name": "Demo User",
+    "firstName": "Demo",
+    "lastName": "User",
+    "country": "US",
+    "createdAt": "2024-01-15T10:00:00Z",
+    "lastLogin": "2024-12-13T08:30:00Z"
+  },
+  {
+    "id": "user-002",
+    "email": "sarah.chen@insurancestack.com",
+    "name": "Sarah Chen",
+    "firstName": "Sarah",
+    "lastName": "Chen",
+    "country": "UK",
+    "createdAt": "2023-06-20T14:22:00Z",
+    "lastLogin": "2024-12-12T18:45:00Z"
+  },
+  {
+    "id": "user-003",
+    "email": "francois.dubois@insurancestack.com",
+    "name": "François Dubois",
+    "firstName": "François",
+    "lastName": "Dubois",
+    "country": "FR",
+    "createdAt": "2023-09-10T09:15:00Z",
+    "lastLogin": "2024-12-13T07:20:00Z"
+  }
+]

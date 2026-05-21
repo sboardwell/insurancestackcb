@@ -1,0 +1,356 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: workflow
+name: Deploy InsuranceStack
+
+on:
+  workflow_call:
+    inputs:
+      pricing_engine_image:
+        type: string
+        required: true
+      policy_service_image:
+        type: string
+        required: true
+      customer_service_image:
+        type: string
+        required: true
+      claims_service_image:
+        type: string
+        required: true
+      payments_service_image:
+        type: string
+        required: true
+      insurance_ui_image:
+        type: string
+        required: true
+      pricing_engine_artifact_id:
+        type: string
+        required: true
+      policy_service_artifact_id:
+        type: string
+        required: true
+      customer_service_artifact_id:
+        type: string
+        required: true
+      claims_service_artifact_id:
+        type: string
+        required: true
+      payments_service_artifact_id:
+        type: string
+        required: true
+      ui_artifact_id:
+        type: string
+        required: true
+      environment_name:
+        type: string
+        required: true
+      commit_sha:
+        type: string
+        required: true
+      repository:
+        type: string
+        required: true
+      app_name:
+        type: string
+        required: false
+        default: "insurancestack"
+      instance_id:
+        type: string
+        required: false
+        default: "demo"
+      base_domain:
+        type: string
+        required: false
+        default: "STACK_BASE_NAME_NOT_SET"
+
+jobs:
+  deploy:
+    environment: ${{ inputs.environment_name }}
+
+    steps:
+      - name: Checkout
+        uses: cloudbees-io/checkout@v1
+
+      - name: Set kubeconfig
+        uses: guru-actions/kubeconfig@1.16
+        with:
+          secname: ${{ secrets.KUBECONFIG }}
+
+      - name: Build subdomain hostname and parse images
+        id: hostname
+        uses: docker://alpine:3.20
+        shell: sh
+        env:
+          APP_NAME: ${{ inputs.app_name }}
+          INSTANCE_ID: ${{ inputs.instance_id }}
+          NAMESPACE: ${{ inputs.environment_name }}
+          BASE_DOMAIN: ${{ inputs.base_domain }}
+          PRICING_ENGINE_IMAGE: ${{ inputs.pricing_engine_image }}
+          POLICY_SERVICE_IMAGE: ${{ inputs.policy_service_image }}
+          CUSTOMER_SERVICE_IMAGE: ${{ inputs.customer_service_image }}
+          CLAIMS_SERVICE_IMAGE: ${{ inputs.claims_service_image }}
+          PAYMENTS_SERVICE_IMAGE: ${{ inputs.payments_service_image }}
+          INSURANCE_UI_IMAGE: ${{ inputs.insurance_ui_image }}
+        run: |
+          set -eu
+          # Build subdomain hostname: <app_name>-<id>-<env>.<base_domain>
+          HOSTNAME="${APP_NAME}-${INSTANCE_ID}-${NAMESPACE}.${BASE_DOMAIN}"
+          printf '%s' "$HOSTNAME" > "$CLOUDBEES_OUTPUTS/name"
+          echo "Hostname: $HOSTNAME"
+
+          # Parse image repositories and tags
+          # Format: repository:tag -> split into repo and tag
+          echo "${PRICING_ENGINE_IMAGE%:*}" > "$CLOUDBEES_OUTPUTS/pricing_engine_repo"
+          echo "${PRICING_ENGINE_IMAGE##*:}" > "$CLOUDBEES_OUTPUTS/pricing_engine_tag"
+
+          echo "${POLICY_SERVICE_IMAGE%:*}" > "$CLOUDBEES_OUTPUTS/policy_service_repo"
+          echo "${POLICY_SERVICE_IMAGE##*:}" > "$CLOUDBEES_OUTPUTS/policy_service_tag"
+
+          echo "${CUSTOMER_SERVICE_IMAGE%:*}" > "$CLOUDBEES_OUTPUTS/customer_service_repo"
+          echo "${CUSTOMER_SERVICE_IMAGE##*:}" > "$CLOUDBEES_OUTPUTS/customer_service_tag"
+
+          echo "${CLAIMS_SERVICE_IMAGE%:*}" > "$CLOUDBEES_OUTPUTS/claims_service_repo"
+          echo "${CLAIMS_SERVICE_IMAGE##*:}" > "$CLOUDBEES_OUTPUTS/claims_service_tag"
+
+          echo "${PAYMENTS_SERVICE_IMAGE%:*}" > "$CLOUDBEES_OUTPUTS/payments_service_repo"
+          echo "${PAYMENTS_SERVICE_IMAGE##*:}" > "$CLOUDBEES_OUTPUTS/payments_service_tag"
+
+          echo "${INSURANCE_UI_IMAGE%:*}" > "$CLOUDBEES_OUTPUTS/insurance_ui_repo"
+          echo "${INSURANCE_UI_IMAGE##*:}" > "$CLOUDBEES_OUTPUTS/insurance_ui_tag"
+
+      - name: Deploy with Helm
+        kind: deploy
+        uses: cloudbees-io/helm-install@v1
+        with:
+          chart-location: ${{ cloudbees.workspace }}/helm/insurancestack
+          release-name: insurancestack
+          namespace: ${{ inputs.environment_name }}
+          wait: true
+          timeout: 10m
+          values: |
+            deployment:
+              hostname: ${{ steps.hostname.outputs.name }}
+              instanceId: ${{ inputs.instance_id }}
+              environmentName: ${{ inputs.environment_name }}
+
+            cloudbees:
+              fmKey: ${{ secrets.FM_TOKEN || 'local-mode' }}
+              environment: production
+
+            featureFlags:
+              enabled: true
+              createSecret: true
+              fmKey: ${{ secrets.FM_TOKEN || 'local-mode' }}
+
+            pricingEngine:
+              enabled: true
+              replicaCount: 1
+              image:
+                repository: ${{ steps.hostname.outputs.pricing_engine_repo }}
+                tag: ${{ steps.hostname.outputs.pricing_engine_tag }}
+                pullPolicy: Always
+
+            policyService:
+              enabled: true
+              replicaCount: 1
+              image:
+                repository: ${{ steps.hostname.outputs.policy_service_repo }}
+                tag: ${{ steps.hostname.outputs.policy_service_tag }}
+                pullPolicy: Always
+
+            customerService:
+              enabled: true
+              replicaCount: 1
+              image:
+                repository: ${{ steps.hostname.outputs.customer_service_repo }}
+                tag: ${{ steps.hostname.outputs.customer_service_tag }}
+                pullPolicy: Always
+
+            claimsService:
+              enabled: true
+              replicaCount: 1
+              image:
+                repository: ${{ steps.hostname.outputs.claims_service_repo }}
+                tag: ${{ steps.hostname.outputs.claims_service_tag }}
+                pullPolicy: Always
+
+            paymentsService:
+              enabled: true
+              replicaCount: 1
+              image:
+                repository: ${{ steps.hostname.outputs.payments_service_repo }}
+                tag: ${{ steps.hostname.outputs.payments_service_tag }}
+                pullPolicy: Always
+
+            insuranceUI:
+              enabled: true
+              replicaCount: 1
+              image:
+                repository: ${{ steps.hostname.outputs.insurance_ui_repo }}
+                tag: ${{ steps.hostname.outputs.insurance_ui_tag }}
+                pullPolicy: Always
+              ingress:
+                enabled: true
+                className: nginx
+                annotations:
+                  cert-manager.io/cluster-issuer: letsencrypt-prod
+                hosts:
+                  - host: ${{ steps.hostname.outputs.name }}
+                    paths:
+                      - path: /
+                        pathType: Prefix
+                tls:
+                  - secretName: insurancestack-${{ inputs.instance_id }}-${{ inputs.environment_name }}-tls
+                    hosts:
+                      - ${{ steps.hostname.outputs.name }}
+
+      - name: Calculate version and metadata
+        id: metadata
+        uses: docker://alpine:3.20
+        shell: sh
+        env:
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          ENVIRONMENT_NAME: ${{ inputs.environment_name }}
+        run: |
+          set -eu
+
+          # Short SHA (12 chars)
+          SHORT_SHA=$(echo "$COMMIT_SHA" | cut -c1-12)
+          printf '%s' "$SHORT_SHA" > "$CLOUDBEES_OUTPUTS/sha12"
+          echo "Short SHA: $SHORT_SHA"
+
+          # Short version (first 7 chars of SHA)
+          SHORT_VER=$(echo "$COMMIT_SHA" | cut -c1-7)
+          printf '%s' "$SHORT_VER" > "$CLOUDBEES_OUTPUTS/ver"
+          echo "Version: $SHORT_VER"
+
+          # Timestamp
+          TIMESTAMP=$(date -u +%Y%m%d%H%M%S)
+          printf '%s' "$TIMESTAMP" > "$CLOUDBEES_OUTPUTS/ts"
+          echo "Timestamp: $TIMESTAMP"
+
+          # Environment code (shortened for labels)
+          case "$ENVIRONMENT_NAME" in
+            insurance-stack-dev)
+              ENV_CODE="dev"
+              ;;
+            insurance-stack-devb)
+              ENV_CODE="devb"
+              ;;
+            insurance-stack-staging)
+              ENV_CODE="staging"
+              ;;
+            insurance-stack-prod)
+              ENV_CODE="prod"
+              ;;
+            *)
+              # Use first 8 chars of environment name
+              ENV_CODE=$(echo "$ENVIRONMENT_NAME" | cut -c1-8)
+              ;;
+          esac
+          printf '%s' "$ENV_CODE" > "$CLOUDBEES_OUTPUTS/code"
+          echo "Environment code: $ENV_CODE"
+
+      - name: Register Pricing Engine artifact
+        kind: deploy
+        uses: cloudbees-io/register-deployed-artifact@v2
+        with:
+          artifact-id: ${{ inputs.pricing_engine_artifact_id }}
+          target-environment: ${{ inputs.environment_name }}
+          labels: >
+            ver=${{ steps.metadata.outputs.ver }},
+            sha=${{ steps.metadata.outputs.sha12 }},
+            ts=${{ steps.metadata.outputs.ts }},
+            d.${{ steps.metadata.outputs.code }}=true
+
+      - name: Register Policy Service artifact
+        kind: deploy
+        uses: cloudbees-io/register-deployed-artifact@v2
+        with:
+          artifact-id: ${{ inputs.policy_service_artifact_id }}
+          target-environment: ${{ inputs.environment_name }}
+          labels: >
+            ver=${{ steps.metadata.outputs.ver }},
+            sha=${{ steps.metadata.outputs.sha12 }},
+            ts=${{ steps.metadata.outputs.ts }},
+            d.${{ steps.metadata.outputs.code }}=true
+
+      - name: Register Customer Service artifact
+        kind: deploy
+        uses: cloudbees-io/register-deployed-artifact@v2
+        with:
+          artifact-id: ${{ inputs.customer_service_artifact_id }}
+          target-environment: ${{ inputs.environment_name }}
+          labels: >
+            ver=${{ steps.metadata.outputs.ver }},
+            sha=${{ steps.metadata.outputs.sha12 }},
+            ts=${{ steps.metadata.outputs.ts }},
+            d.${{ steps.metadata.outputs.code }}=true
+
+      - name: Register Claims Service artifact
+        kind: deploy
+        uses: cloudbees-io/register-deployed-artifact@v2
+        with:
+          artifact-id: ${{ inputs.claims_service_artifact_id }}
+          target-environment: ${{ inputs.environment_name }}
+          labels: >
+            ver=${{ steps.metadata.outputs.ver }},
+            sha=${{ steps.metadata.outputs.sha12 }},
+            ts=${{ steps.metadata.outputs.ts }},
+            d.${{ steps.metadata.outputs.code }}=true
+
+      - name: Register Payments Service artifact
+        kind: deploy
+        uses: cloudbees-io/register-deployed-artifact@v2
+        with:
+          artifact-id: ${{ inputs.payments_service_artifact_id }}
+          target-environment: ${{ inputs.environment_name }}
+          labels: >
+            ver=${{ steps.metadata.outputs.ver }},
+            sha=${{ steps.metadata.outputs.sha12 }},
+            ts=${{ steps.metadata.outputs.ts }},
+            d.${{ steps.metadata.outputs.code }}=true
+
+      - name: Register Insurance UI artifact
+        kind: deploy
+        uses: cloudbees-io/register-deployed-artifact@v2
+        with:
+          artifact-id: ${{ inputs.ui_artifact_id }}
+          target-environment: ${{ inputs.environment_name }}
+          labels: >
+            ver=${{ steps.metadata.outputs.ver }},
+            sha=${{ steps.metadata.outputs.sha12 }},
+            ts=${{ steps.metadata.outputs.ts }},
+            d.${{ steps.metadata.outputs.code }}=true
+
+      - name: Publish deployment evidence
+        kind: deploy
+        uses: cloudbees-io/publish-evidence-item@v1
+        with:
+          format: MARKDOWN
+          content: |
+            ## Deployed: InsuranceStack (All Components)
+
+            **Environment:** `${{ inputs.environment_name }}`
+            **Instance ID:** `${{ inputs.instance_id }}`
+            **Repository:** `${{ inputs.repository }}`
+            **Commit:** `${{ inputs.commit_sha }}`
+            **URL:** [https://${{ steps.hostname.outputs.name }}](https://${{ steps.hostname.outputs.name }})
+
+            ### Components Deployed
+            - **Pricing Engine:** `${{ inputs.pricing_engine_image }}`
+            - **Policy Service:** `${{ inputs.policy_service_image }}`
+            - **Customer Service:** `${{ inputs.customer_service_image }}`
+            - **Claims Service:** `${{ inputs.claims_service_image }}`
+            - **Payments Service:** `${{ inputs.payments_service_image }}`
+            - **Insurance UI:** `${{ inputs.insurance_ui_image }}`
+
+            ### Deployment Details
+            - Kubernetes namespace: `${{ inputs.environment_name }}`
+            - Helm release: `insurancestack`
+            - Hostname: `${{ steps.hostname.outputs.name }}`
+            - Public ingress with SSL (cert-manager + LetsEncrypt)
+            - Host-based routing (subdomain)
+            - Deployment method: CloudBees Helm Install Action
+            - Feature Management Key: ${{ secrets.FM_TOKEN && '✓ from secret' || '✗ using local-mode' }}
+            - Deployment successful ✓

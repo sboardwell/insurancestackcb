@@ -1,0 +1,75 @@
+[
+  {
+    "id": "acc-001",
+    "userId": "user-001",
+    "accountNumber": "****1234",
+    "accountType": "checking",
+    "accountName": "Personal Checking",
+    "balance": 5847.32,
+    "currency": "USD",
+    "status": "active",
+    "openedDate": "2023-03-15T00:00:00Z",
+    "lastActivity": "2024-12-12T15:30:00Z"
+  },
+  {
+    "id": "acc-002",
+    "userId": "user-001",
+    "accountNumber": "****5678",
+    "accountType": "savings",
+    "accountName": "High Yield Savings",
+    "balance": 23456.89,
+    "currency": "USD",
+    "status": "active",
+    "openedDate": "2023-03-15T00:00:00Z",
+    "lastActivity": "2024-12-10T09:15:00Z"
+  },
+  {
+    "id": "acc-003",
+    "userId": "user-001",
+    "accountNumber": "****9012",
+    "accountType": "credit",
+    "accountName": "Rewards Credit Card",
+    "balance": -2134.56,
+    "currency": "USD",
+    "creditLimit": 10000.00,
+    "status": "active",
+    "openedDate": "2023-07-22T00:00:00Z",
+    "lastActivity": "2024-12-13T07:20:00Z"
+  },
+  {
+    "id": "acc-004",
+    "userId": "user-002",
+    "accountNumber": "****3456",
+    "accountType": "checking",
+    "accountName": "Business Checking",
+    "balance": 45123.67,
+    "currency": "USD",
+    "status": "active",
+    "openedDate": "2023-06-20T00:00:00Z",
+    "lastActivity": "2024-12-13T06:00:00Z"
+  },
+  {
+    "id": "acc-005",
+    "userId": "user-003",
+    "accountNumber": "****7890",
+    "accountType": "checking",
+    "accountName": "Compte Courant",
+    "balance": 8234.50,
+    "currency": "EUR",
+    "status": "active",
+    "openedDate": "2023-09-10T00:00:00Z",
+    "lastActivity": "2024-12-13T08:45:00Z"
+  },
+  {
+    "id": "acc-006",
+    "userId": "user-003",
+    "accountNumber": "****2468",
+    "accountType": "savings",
+    "accountName": "Livret A",
+    "balance": 15678.25,
+    "currency": "EUR",
+    "status": "active",
+    "openedDate": "2023-09-10T00:00:00Z",
+    "lastActivity": "2024-12-11T14:30:00Z"
+  }
+]

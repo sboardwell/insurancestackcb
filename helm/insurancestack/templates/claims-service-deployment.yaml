@@ -1,0 +1,112 @@
+{{- if .Values.claimsService.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "insurancestack.fullname" . }}-claims-service
+  labels:
+    {{- include "insurancestack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: claims-service
+    governance.insurancestack.io/tier: {{ .Values.claimsService.governanceTier }}
+    governance.insurancestack.io/level: {{ .Values.claimsService.governanceLevel }}
+  annotations:
+    governance.insurancestack.io/description: "Claims service with high governance"
+spec:
+  replicas: {{ .Values.claimsService.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "insurancestack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: claims-service
+  template:
+    metadata:
+      labels:
+        {{- include "insurancestack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: claims-service
+        governance.insurancestack.io/tier: {{ .Values.claimsService.governanceTier }}
+        governance.insurancestack.io/level: {{ .Values.claimsService.governanceLevel }}
+    spec:
+      containers:
+      - name: claims-service
+        image: "{{ .Values.claimsService.image.repository }}:{{ .Values.claimsService.image.tag }}"
+        imagePullPolicy: {{ .Values.claimsService.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.claimsService.service.targetPort }}
+          protocol: TCP
+        env:
+        - name: PORT
+          value: "{{ .Values.claimsService.service.targetPort }}"
+        - name: DATA_PATH
+          value: {{ .Values.claimsService.env.dataPath | quote }}
+        - name: FEATURE_AUTO_APPROVAL
+          value: {{ .Values.claimsService.env.featureAutoApproval | quote }}
+        - name: FEATURE_FRAUD_DETECTION
+          value: {{ .Values.claimsService.env.featureFraudDetection | quote }}
+        - name: FEATURE_ADVANCED_ANALYTICS
+          value: {{ .Values.claimsService.env.featureAdvancedAnalytics | quote }}
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "insurancestack.fullname" . }}-auth
+              key: jwt-secret
+        - name: AUTH_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "insurancestack.fullname" . }}-auth
+              key: auth-username
+        - name: AUTH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "insurancestack.fullname" . }}-auth
+              key: auth-password
+        - name: CLOUDBEES_FM_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "insurancestack.fullname" . }}-auth
+              key: cloudbees-fm-key
+        - name: CLOUDBEES_FM_ENVIRONMENT
+          value: {{ .Values.cloudbees.environment | quote }}
+        - name: LOG_LEVEL
+          value: "info"
+        - name: GOVERNANCE_TIER
+          value: {{ .Values.claimsService.governanceTier | quote }}
+        - name: GOVERNANCE_LEVEL
+          value: {{ .Values.claimsService.governanceLevel | quote }}
+        livenessProbe:
+          {{- toYaml .Values.claimsService.livenessProbe | nindent 10 }}
+        readinessProbe:
+          {{- toYaml .Values.claimsService.readinessProbe | nindent 10 }}
+        resources:
+          {{- toYaml .Values.claimsService.resources | nindent 10 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: claims-service
+  labels:
+    {{- include "insurancestack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: claims-service
+    governance.insurancestack.io/tier: {{ .Values.claimsService.governanceTier }}
+    governance.insurancestack.io/level: {{ .Values.claimsService.governanceLevel }}
+spec:
+  type: {{ .Values.claimsService.service.type }}
+  ports:
+  - port: {{ .Values.claimsService.service.port }}
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "insurancestack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: claims-service
+{{- end }}

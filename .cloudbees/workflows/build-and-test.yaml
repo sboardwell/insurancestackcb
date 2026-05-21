@@ -1,0 +1,495 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: workflow
+name: Build and Test
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+jobs:
+  build-pricing-engine:
+    outputs:
+      ARTIFACT_ID: ${{ steps.parse-pricing-artifact.outputs.id }}
+    steps:
+      - name: Checkout
+        uses: cloudbees-io/checkout@v1
+      - name: Run tests
+        kind: test
+        uses: docker://golang:1.21-alpine
+        env:
+          CI: "true"
+        run: |
+          set -eu
+          cd apps/pricing-engine
+          echo "Running Go tests..."
+          go install github.com/jstemmer/go-junit-report/v2@latest
+          go test -v -coverprofile=coverage.out ./... 2>&1 | tee test-output.txt || true
+          # Only generate XML if there were actual tests (not just "no test files")
+          if grep -q "^=== RUN" test-output.txt; then
+            cat test-output.txt | go-junit-report -set-exit-code > test-results.xml || true
+          else
+            echo "No tests found, skipping JUnit report generation"
+          fi
+      - name: Publish Pricing Engine test results
+        uses: cloudbees-io/publish-test-results@v1
+        with:
+          test-type: go
+          folder-name: ${{ cloudbees.workspace }}/apps/pricing-engine
+      - name: Configure Docker credentials
+        uses: cloudbees-io/configure-oci-credentials@v1
+        with:
+          registry: https://index.docker.io/v1/
+          username: ${{ vars.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - name: Build Docker image
+        kind: build
+        id: kaniko-pricing
+        uses: cloudbees-io/kaniko@v1
+        with:
+          context: .
+          dockerfile: apps/pricing-engine/Dockerfile
+          destination: ${{ vars.DOCKER_USER }}/insurancestack-pricing-engine:${{ cloudbees.scm.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ cloudbees.scm.sha }}
+      - name: Parse Pricing Engine artifact ID
+        id: parse-pricing-artifact
+        uses: docker://alpine:3.20
+        shell: sh
+        env:
+          IDS: ${{ steps.kaniko-pricing.outputs.artifact-ids }}
+        run: |
+          set -eu
+          echo "DEBUG: Raw IDS value: '$IDS'"
+          echo "DEBUG: IDS length: ${#IDS}"
+
+          # Extract UUID directly using grep -o (works for any format)
+          ART_ID=$(echo "$IDS" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+
+          if [ -z "$ART_ID" ]; then
+            echo "ERROR: Could not extract UUID from artifact-ids output" >&2
+            echo "Raw output was: $IDS" >&2
+            exit 1
+          fi
+
+          case "$ART_ID" in
+            ????????-????-????-????-????????????) : ;;
+            *) echo "Parsed artifact-id does not look like a UUID: '$ART_ID'" >&2; exit 1;;
+          esac
+
+          echo "Extracted artifact ID: $ART_ID"
+          printf '%s' "$ART_ID" > "$CLOUDBEES_OUTPUTS/id"
+          echo "Pricing Engine artifact ID: $ART_ID"
+  build-policy-service:
+    outputs:
+      ARTIFACT_ID: ${{ steps.parse-policy-artifact.outputs.id }}
+    steps:
+      - name: Checkout
+        uses: cloudbees-io/checkout@v1
+      - name: Run tests
+        kind: test
+        uses: docker://golang:1.21-alpine
+        env:
+          CI: "true"
+        run: |
+          cd apps/policy-service
+          echo "Running Go tests..."
+          go install github.com/jstemmer/go-junit-report/v2@latest
+          go test -v -coverprofile=coverage.out ./... 2>&1 | tee test-output.txt || true
+          # Only generate XML if there were actual tests (not just "no test files")
+          if grep -q "^=== RUN" test-output.txt; then
+            cat test-output.txt | go-junit-report -set-exit-code > test-results.xml || true
+          else
+            echo "No tests found, skipping JUnit report generation"
+          fi
+      - name: Publish Policy Service test results
+        uses: cloudbees-io/publish-test-results@v1
+        with:
+          test-type: go
+          folder-name: ${{ cloudbees.workspace }}/apps/policy-service
+      - name: Configure Docker credentials
+        uses: cloudbees-io/configure-oci-credentials@v1
+        with:
+          registry: https://index.docker.io/v1/
+          username: ${{ vars.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - name: Build Docker image
+        kind: build
+        id: kaniko-policy
+        uses: cloudbees-io/kaniko@v1
+        with:
+          context: .
+          dockerfile: apps/policy-service/Dockerfile
+          destination: ${{ vars.DOCKER_USER }}/insurancestack-policy-service:${{ cloudbees.scm.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ cloudbees.scm.sha }}
+      - name: Parse Policy Service artifact ID
+        id: parse-policy-artifact
+        uses: docker://alpine:3.20
+        shell: sh
+        env:
+          IDS: ${{ steps.kaniko-policy.outputs.artifact-ids }}
+        run: |
+          set -eu
+          echo "DEBUG: Raw IDS value: '$IDS'"
+          echo "DEBUG: IDS length: ${#IDS}"
+
+          # Extract UUID directly using grep -o (works for any format)
+          ART_ID=$(echo "$IDS" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+
+          if [ -z "$ART_ID" ]; then
+            echo "ERROR: Could not extract UUID from artifact-ids output" >&2
+            echo "Raw output was: $IDS" >&2
+            exit 1
+          fi
+
+          case "$ART_ID" in
+            ????????-????-????-????-????????????) : ;;
+            *) echo "Parsed artifact-id does not look like a UUID: '$ART_ID'" >&2; exit 1;;
+          esac
+
+          echo "Extracted artifact ID: $ART_ID"
+          printf '%s' "$ART_ID" > "$CLOUDBEES_OUTPUTS/id"
+          echo "Policy Service artifact ID: $ART_ID"
+  build-customer-service:
+    outputs:
+      ARTIFACT_ID: ${{ steps.parse-customer-artifact.outputs.id }}
+    steps:
+      - name: Checkout
+        uses: cloudbees-io/checkout@v1
+      - name: Run tests
+        kind: test
+        uses: docker://golang:1.21-alpine
+        env:
+          CI: "true"
+        run: |
+          set -eu
+          cd apps/customer-service
+          echo "Running Go tests..."
+          go install github.com/jstemmer/go-junit-report/v2@latest
+          go test -v -coverprofile=coverage.out ./... 2>&1 | tee test-output.txt || true
+          # Only generate XML if there were actual tests (not just "no test files")
+          if grep -q "^=== RUN" test-output.txt; then
+            cat test-output.txt | go-junit-report -set-exit-code > test-results.xml || true
+          else
+            echo "No tests found, skipping JUnit report generation"
+          fi
+      - name: Publish Customer Service test results
+        uses: cloudbees-io/publish-test-results@v1
+        with:
+          test-type: go
+          folder-name: ${{ cloudbees.workspace }}/apps/customer-service
+      - name: Configure Docker credentials
+        uses: cloudbees-io/configure-oci-credentials@v1
+        with:
+          registry: https://index.docker.io/v1/
+          username: ${{ vars.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - name: Build Docker image
+        kind: build
+        id: kaniko-customer
+        uses: cloudbees-io/kaniko@v1
+        with:
+          context: .
+          dockerfile: apps/customer-service/Dockerfile
+          destination: ${{ vars.DOCKER_USER }}/insurancestack-customer-service:${{ cloudbees.scm.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ cloudbees.scm.sha }}
+      - name: Parse Customer Service artifact ID
+        id: parse-customer-artifact
+        uses: docker://alpine:3.20
+        shell: sh
+        env:
+          IDS: ${{ steps.kaniko-customer.outputs.artifact-ids }}
+        run: |
+          set -eu
+          echo "DEBUG: Raw IDS value: '$IDS'"
+          echo "DEBUG: IDS length: ${#IDS}"
+
+          # Extract UUID directly using grep -o (works for any format)
+          ART_ID=$(echo "$IDS" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+
+          if [ -z "$ART_ID" ]; then
+            echo "ERROR: Could not extract UUID from artifact-ids output" >&2
+            echo "Raw output was: $IDS" >&2
+            exit 1
+          fi
+
+          case "$ART_ID" in
+            ????????-????-????-????-????????????) : ;;
+            *) echo "Parsed artifact-id does not look like a UUID: '$ART_ID'" >&2; exit 1;;
+          esac
+
+          echo "Extracted artifact ID: $ART_ID"
+          printf '%s' "$ART_ID" > "$CLOUDBEES_OUTPUTS/id"
+          echo "Customer Service artifact ID: $ART_ID"
+  build-claims-service:
+    outputs:
+      ARTIFACT_ID: ${{ steps.parse-claims-artifact.outputs.id }}
+    steps:
+      - name: Checkout
+        uses: cloudbees-io/checkout@v1
+      - name: Run tests
+        kind: test
+        uses: docker://golang:1.21-alpine
+        env:
+          CI: "true"
+        run: |
+          set -eu
+          cd apps/claims-service
+          echo "Running Go tests..."
+          go install github.com/jstemmer/go-junit-report/v2@latest
+          go test -v -coverprofile=coverage.out ./... 2>&1 | tee test-output.txt || true
+          # Only generate XML if there were actual tests (not just "no test files")
+          if grep -q "^=== RUN" test-output.txt; then
+            cat test-output.txt | go-junit-report -set-exit-code > test-results.xml || true
+          else
+            echo "No tests found, skipping JUnit report generation"
+          fi
+      - name: Publish Claims Service test results
+        uses: cloudbees-io/publish-test-results@v1
+        with:
+          test-type: go
+          folder-name: ${{ cloudbees.workspace }}/apps/claims-service
+      - name: Configure Docker credentials
+        uses: cloudbees-io/configure-oci-credentials@v1
+        with:
+          registry: https://index.docker.io/v1/
+          username: ${{ vars.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - name: Build Docker image
+        kind: build
+        id: kaniko-claims
+        uses: cloudbees-io/kaniko@v1
+        with:
+          context: .
+          dockerfile: apps/claims-service/Dockerfile
+          destination: ${{ vars.DOCKER_USER }}/insurancestack-claims-service:${{ cloudbees.scm.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ cloudbees.scm.sha }}
+      - name: Parse Claims Service artifact ID
+        id: parse-claims-artifact
+        uses: docker://alpine:3.20
+        shell: sh
+        env:
+          IDS: ${{ steps.kaniko-claims.outputs.artifact-ids }}
+        run: |
+          set -eu
+          echo "DEBUG: Raw IDS value: '$IDS'"
+          echo "DEBUG: IDS length: ${#IDS}"
+
+          # Extract UUID directly using grep -o (works for any format)
+          ART_ID=$(echo "$IDS" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+
+          if [ -z "$ART_ID" ]; then
+            echo "ERROR: Could not extract UUID from artifact-ids output" >&2
+            echo "Raw output was: $IDS" >&2
+            exit 1
+          fi
+
+          case "$ART_ID" in
+            ????????-????-????-????-????????????) : ;;
+            *) echo "Parsed artifact-id does not look like a UUID: '$ART_ID'" >&2; exit 1;;
+          esac
+
+          echo "Extracted artifact ID: $ART_ID"
+          printf '%s' "$ART_ID" > "$CLOUDBEES_OUTPUTS/id"
+          echo "Claims Service artifact ID: $ART_ID"
+  build-payments-service:
+    outputs:
+      ARTIFACT_ID: ${{ steps.parse-payments-artifact.outputs.id }}
+    steps:
+      - name: Checkout
+        uses: cloudbees-io/checkout@v1
+      - name: Run tests
+        kind: test
+        uses: docker://golang:1.21-alpine
+        env:
+          CI: "true"
+        run: |
+          set -eu
+          cd apps/payments-service
+          echo "Running Go tests..."
+          go install github.com/jstemmer/go-junit-report/v2@latest
+          go test -v -coverprofile=coverage.out ./... 2>&1 | tee test-output.txt || true
+          # Only generate XML if there were actual tests (not just "no test files")
+          if grep -q "^=== RUN" test-output.txt; then
+            cat test-output.txt | go-junit-report -set-exit-code > test-results.xml || true
+          else
+            echo "No tests found, skipping JUnit report generation"
+          fi
+      - name: Publish Payments Service test results
+        uses: cloudbees-io/publish-test-results@v1
+        with:
+          test-type: go
+          folder-name: ${{ cloudbees.workspace }}/apps/payments-service
+      - name: Configure Docker credentials
+        uses: cloudbees-io/configure-oci-credentials@v1
+        with:
+          registry: https://index.docker.io/v1/
+          username: ${{ vars.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - name: Build Docker image
+        kind: build
+        id: kaniko-payments
+        uses: cloudbees-io/kaniko@v1
+        with:
+          context: .
+          dockerfile: apps/payments-service/Dockerfile
+          destination: ${{ vars.DOCKER_USER }}/insurancestack-payments-service:${{ cloudbees.scm.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ cloudbees.scm.sha }}
+      - name: Parse Payments Service artifact ID
+        id: parse-payments-artifact
+        uses: docker://alpine:3.20
+        shell: sh
+        env:
+          IDS: ${{ steps.kaniko-payments.outputs.artifact-ids }}
+        run: |
+          set -eu
+          echo "DEBUG: Raw IDS value: '$IDS'"
+          echo "DEBUG: IDS length: ${#IDS}"
+
+          # Extract UUID directly using grep -o (works for any format)
+          ART_ID=$(echo "$IDS" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+
+          if [ -z "$ART_ID" ]; then
+            echo "ERROR: Could not extract UUID from artifact-ids output" >&2
+            echo "Raw output was: $IDS" >&2
+            exit 1
+          fi
+
+          case "$ART_ID" in
+            ????????-????-????-????-????????????) : ;;
+            *) echo "Parsed artifact-id does not look like a UUID: '$ART_ID'" >&2; exit 1;;
+          esac
+
+          echo "Extracted artifact ID: $ART_ID"
+          printf '%s' "$ART_ID" > "$CLOUDBEES_OUTPUTS/id"
+          echo "Payments Service artifact ID: $ART_ID"
+  build-insurance-ui:
+    outputs:
+      ARTIFACT_ID: ${{ steps.parse-ui-artifact.outputs.id }}
+    steps:
+      - name: Checkout
+        uses: cloudbees-io/checkout@v1
+      - name: Install dependencies and run tests
+        kind: test
+        uses: docker://node:20-alpine
+        env:
+          CI: "true"
+        run: |
+          set -eu
+          cd apps/insurance-ui
+          echo "Installing dependencies..."
+          npm ci
+
+          echo "Running linter..."
+          npm run lint || true
+
+          echo "Running unit tests..."
+          npm run test:unit -- --reporter=verbose --reporter=junit --outputFile.junit=./test-results.xml
+
+          echo "Building application..."
+          npm run build
+      - name: Publish UI test results
+        uses: cloudbees-io/publish-test-results@v1
+        with:
+          test-type: junit
+          folder-name: ${{ cloudbees.workspace }}/apps/insurance-ui
+      - name: Configure Docker credentials
+        uses: cloudbees-io/configure-oci-credentials@v1
+        with:
+          registry: https://index.docker.io/v1/
+          username: ${{ vars.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - name: Build Docker image
+        kind: build
+        id: kaniko-ui
+        uses: cloudbees-io/kaniko@v1
+        with:
+          context: apps/insurance-ui
+          dockerfile: apps/insurance-ui/Dockerfile
+          destination: ${{ vars.DOCKER_USER }}/insurancestack-insurance-ui:${{ cloudbees.scm.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ cloudbees.scm.sha }}
+      - name: Parse Insurance UI artifact ID
+        id: parse-ui-artifact
+        uses: docker://alpine:3.20
+        shell: sh
+        env:
+          IDS: ${{ steps.kaniko-ui.outputs.artifact-ids }}
+        run: |
+          set -eu
+          echo "DEBUG: Raw IDS value: '$IDS'"
+          echo "DEBUG: IDS length: ${#IDS}"
+
+          # Extract UUID directly using grep -o (works for any format)
+          ART_ID=$(echo "$IDS" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+
+          if [ -z "$ART_ID" ]; then
+            echo "ERROR: Could not extract UUID from artifact-ids output" >&2
+            echo "Raw output was: $IDS" >&2
+            exit 1
+          fi
+
+          case "$ART_ID" in
+            ????????-????-????-????-????????????) : ;;
+            *) echo "Parsed artifact-id does not look like a UUID: '$ART_ID'" >&2; exit 1;;
+          esac
+
+          echo "Extracted artifact ID: $ART_ID"
+          printf '%s' "$ART_ID" > "$CLOUDBEES_OUTPUTS/id"
+          echo "Insurance UI artifact ID: $ART_ID"
+  # Deploy all components to Dev environment using Helm
+  deploy-dev:
+    # CloudBees environment (must exist in platform settings)
+    # This is the Kubernetes namespace where resources will be deployed
+    environment: insurance-stack-dev
+
+    # Reference to reusable deployment workflow
+    uses: ./.cloudbees/workflows/deploy-simple.yaml
+
+    # Wait for all build jobs to complete before deploying
+    needs:
+      - build-pricing-engine
+      - build-policy-service
+      - build-customer-service
+      - build-claims-service
+      - build-payments-service
+      - build-insurance-ui
+
+    with:
+      # Docker images to deploy (built in previous jobs)
+      pricing_engine_image: ${{ vars.DOCKER_USER }}/insurancestack-pricing-engine:${{ cloudbees.scm.sha }}
+      policy_service_image: ${{ vars.DOCKER_USER }}/insurancestack-policy-service:${{ cloudbees.scm.sha }}
+      customer_service_image: ${{ vars.DOCKER_USER }}/insurancestack-customer-service:${{ cloudbees.scm.sha }}
+      claims_service_image: ${{ vars.DOCKER_USER }}/insurancestack-claims-service:${{ cloudbees.scm.sha }}
+      payments_service_image: ${{ vars.DOCKER_USER }}/insurancestack-payments-service:${{ cloudbees.scm.sha }}
+      insurance_ui_image: ${{ vars.DOCKER_USER }}/insurancestack-insurance-ui:${{ cloudbees.scm.sha }}
+
+      # Artifact IDs for deployment tracking
+      pricing_engine_artifact_id: ${{ needs.build-pricing-engine.outputs.ARTIFACT_ID }}
+      policy_service_artifact_id: ${{ needs.build-policy-service.outputs.ARTIFACT_ID }}
+      customer_service_artifact_id: ${{ needs.build-customer-service.outputs.ARTIFACT_ID }}
+      claims_service_artifact_id: ${{ needs.build-claims-service.outputs.ARTIFACT_ID }}
+      payments_service_artifact_id: ${{ needs.build-payments-service.outputs.ARTIFACT_ID }}
+      ui_artifact_id: ${{ needs.build-insurance-ui.outputs.ARTIFACT_ID }}
+
+      # Environment configuration
+      environment_name: insurance-stack-dev    # Must match 'environment' above (K8s namespace)
+      repository: ${{ cloudbees.scm.repository }}
+      commit_sha: ${{ cloudbees.scm.sha }}
+
+      # Subdomain configuration
+      # URL will be: <app_name>-<instance_id>-<environment_name>.<base_domain>
+      # Example: insurancestack-demo-insurance-stack-dev.demos.se-main-demo.sa-demo.beescloud.com
+      app_name: insurancestack           # Application name prefix for subdomain
+      instance_id: demo                  # Instance identifier (e.g., demo, team1, customer-name)
+      base_domain: ${{ vars.STACK_BASE_NAME }}  # Base domain with wildcard DNS
+
+    # Inherit secrets from workflow (e.g., KUBECONFIG, FM_TOKEN)
+    secrets: inherit
+    vars: inherit

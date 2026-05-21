@@ -1,0 +1,123 @@
+{{- if .Values.insuranceUI.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "insurancestack.fullname" . }}-insurance-ui
+  labels:
+    {{- include "insurancestack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: insurance-ui
+    governance.insurancestack.io/tier: {{ .Values.insuranceUI.governanceTier }}
+  annotations:
+    governance.insurancestack.io/description: "Insurance UI with standard governance"
+spec:
+  replicas: {{ .Values.insuranceUI.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "insurancestack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: insurance-ui
+  template:
+    metadata:
+      labels:
+        {{- include "insurancestack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: insurance-ui
+        governance.insurancestack.io/tier: {{ .Values.insuranceUI.governanceTier }}
+    spec:
+      {{- if .Values.featureFlags.enabled }}
+      initContainers:
+        - name: write-fm-config
+          image: alpine:3.20
+          command: ["/bin/sh","-c"]
+          args:
+            - |
+              set -eu
+              mkdir -p {{ .Values.featureFlags.mountPath }}
+              # Write fm.json from secret value (plain string)
+              printf '{"envKey":"%s"}\n' "$(cat /secret/{{ .Values.featureFlags.secretKey }})" \
+                > {{ .Values.featureFlags.mountPath }}/{{ .Values.featureFlags.fileName }}
+          volumeMounts:
+            - name: fm-config
+              mountPath: {{ .Values.featureFlags.mountPath }}
+            - name: fm-secret
+              mountPath: /secret
+              readOnly: true
+      {{- end }}
+      containers:
+      - name: insurance-ui
+        image: "{{ .Values.insuranceUI.image.repository }}:{{ .Values.insuranceUI.image.tag }}"
+        imagePullPolicy: {{ .Values.insuranceUI.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.insuranceUI.service.targetPort }}
+          protocol: TCP
+        env:
+        - name: PORT
+          value: "{{ .Values.insuranceUI.service.targetPort }}"
+        - name: NODE_ENV
+          value: "production"
+        - name: GOVERNANCE_TIER
+          value: {{ .Values.insuranceUI.governanceTier | quote }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.insuranceUI.service.targetPort }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.insuranceUI.service.targetPort }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.insuranceUI.resources | nindent 10 }}
+        {{- if .Values.featureFlags.enabled }}
+        volumeMounts:
+          - name: fm-config
+            mountPath: {{ .Values.featureFlags.mountPath }}
+            readOnly: true
+        {{- end }}
+      {{- if .Values.featureFlags.enabled }}
+      volumes:
+        # Where fm.json is written by the initContainer and then mounted into the app
+        - name: fm-config
+          emptyDir: {}
+        # Secret providing the FM_TOKEN (string)
+        - name: fm-secret
+          secret:
+            secretName: {{ .Values.featureFlags.secretName }}
+            items:
+              - key: {{ .Values.featureFlags.secretKey }}
+                path: {{ .Values.featureFlags.secretKey }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: insurance-ui
+  labels:
+    {{- include "insurancestack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: insurance-ui
+    governance.insurancestack.io/tier: {{ .Values.insuranceUI.governanceTier }}
+spec:
+  type: {{ .Values.insuranceUI.service.type }}
+  ports:
+  - port: {{ .Values.insuranceUI.service.port }}
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "insurancestack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: insurance-ui
+{{- end }}

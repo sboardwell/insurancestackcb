@@ -1,0 +1,74 @@
+[
+  {
+    "id": "insight-001",
+    "userId": "user-001",
+    "type": "spending_alert",
+    "category": "food_dining",
+    "title": "Higher than usual dining spending",
+    "description": "You've spent $162.25 on dining this week, which is 35% higher than your average.",
+    "severity": "medium",
+    "createdAt": "2024-12-13T08:00:00Z",
+    "actionable": true,
+    "recommendation": "Consider meal planning to reduce dining out costs."
+  },
+  {
+    "id": "insight-002",
+    "userId": "user-001",
+    "type": "savings_opportunity",
+    "category": "utilities",
+    "title": "Potential savings on utilities",
+    "description": "Based on your utility usage patterns, you could save $45/month by adjusting thermostat settings.",
+    "severity": "low",
+    "createdAt": "2024-12-12T10:00:00Z",
+    "actionable": true,
+    "recommendation": "Set thermostat to 68°F in winter and 76°F in summer."
+  },
+  {
+    "id": "insight-003",
+    "userId": "user-001",
+    "type": "budget_status",
+    "category": "overall",
+    "title": "On track with monthly budget",
+    "description": "You've spent $1,847 of your $2,500 monthly budget with 8 days remaining.",
+    "severity": "info",
+    "createdAt": "2024-12-13T00:00:00Z",
+    "actionable": false,
+    "recommendation": null
+  },
+  {
+    "id": "insight-004",
+    "userId": "user-001",
+    "type": "credit_utilization",
+    "category": "credit",
+    "title": "Credit utilization healthy",
+    "description": "Your credit utilization is at 21%, which is good for your credit score.",
+    "severity": "info",
+    "createdAt": "2024-12-13T00:00:00Z",
+    "actionable": false,
+    "recommendation": "Keep utilization below 30% for optimal credit health."
+  },
+  {
+    "id": "insight-005",
+    "userId": "user-001",
+    "type": "subscription_review",
+    "category": "entertainment",
+    "title": "Review your subscriptions",
+    "description": "You have 5 active subscriptions totaling $67.95/month. Consider which ones you actively use.",
+    "severity": "low",
+    "createdAt": "2024-12-10T08:00:00Z",
+    "actionable": true,
+    "recommendation": "Review and cancel unused subscriptions to save money."
+  },
+  {
+    "id": "insight-006",
+    "userId": "user-002",
+    "type": "income_trend",
+    "category": "business",
+    "title": "Income increased this month",
+    "description": "Business income is up 23% compared to last month.",
+    "severity": "positive",
+    "createdAt": "2024-12-13T07:00:00Z",
+    "actionable": false,
+    "recommendation": "Consider increasing savings or investments with extra income."
+  }
+]
