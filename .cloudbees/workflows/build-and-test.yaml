@@ -447,7 +447,7 @@ jobs:
   deploy-dev:
     # CloudBees environment (must exist in platform settings)
     # This is the Kubernetes namespace where resources will be deployed
-    environment: insurance-stack-dev
+    environment: insurancestackcb-dev
 
     # Reference to reusable deployment workflow
     uses: ./.cloudbees/workflows/deploy-simple.yaml
@@ -479,15 +479,15 @@ jobs:
       ui_artifact_id: ${{ needs.build-insurance-ui.outputs.ARTIFACT_ID }}
 
       # Environment configuration
-      environment_name: insurance-stack-dev    # Must match 'environment' above (K8s namespace)
+      environment_name: insurancestackcb-dev    # Must match 'environment' above (K8s namespace)
       repository: ${{ cloudbees.scm.repository }}
       commit_sha: ${{ cloudbees.scm.sha }}
 
       # Subdomain configuration
       # URL will be: <app_name>-<instance_id>-<environment_name>.<base_domain>
-      # Example: insurancestack-demo-insurance-stack-dev.demos.se-main-demo.sa-demo.beescloud.com
+      # Example: insurancestack-demo-insurancestackcb-dev.demos.se-main-demo.sa-demo.beescloud.com
       app_name: insurancestack           # Application name prefix for subdomain
-      instance_id: demo                  # Instance identifier (e.g., demo, team1, customer-name)
+      instance_id: insurancestackcb                  # Instance identifier (e.g., demo, team1, customer-name)
       base_domain: ${{ vars.STACK_BASE_NAME }}  # Base domain with wildcard DNS
 
     # Inherit secrets from workflow (e.g., KUBECONFIG, FM_TOKEN)
