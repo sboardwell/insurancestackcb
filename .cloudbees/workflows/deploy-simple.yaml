@@ -71,7 +71,7 @@ jobs:
       - name: Checkout
         uses: cloudbees-io/checkout@v1
 
-      - name: 
+      - name: Preflight
         id: hostname
         uses: docker://alpine:3.20
         shell: sh
