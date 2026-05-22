@@ -72,7 +72,7 @@ jobs:
         uses: cloudbees-io/checkout@v1
 
       - name: Preflight
-        id: hostname
+        id: preflight
         uses: docker://alpine:3.20
         shell: sh
         run: |
