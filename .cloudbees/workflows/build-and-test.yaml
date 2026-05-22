@@ -24,6 +24,7 @@ jobs:
         run: |
           set -eu
           cd apps/pricing-engine
+          echo "DEBUG: Current external IP: $(curl ipinfo.io/ip)"
           echo "Running Go tests..."
           go install github.com/jstemmer/go-junit-report/v2@latest
           go test -v -coverprofile=coverage.out ./... 2>&1 | tee test-output.txt || true
@@ -62,6 +63,7 @@ jobs:
           IDS: ${{ steps.kaniko-pricing.outputs.artifact-ids }}
         run: |
           set -eu
+          echo "DEBUG: Current external IP: $(curl ipinfo.io/ip)"
           echo "DEBUG: Raw IDS value: '$IDS'"
           echo "DEBUG: IDS length: ${#IDS}"
 
@@ -95,6 +97,7 @@ jobs:
           CI: "true"
         run: |
           cd apps/policy-service
+          echo "DEBUG: Current external IP: $(curl ipinfo.io/ip)"
           echo "Running Go tests..."
           go install github.com/jstemmer/go-junit-report/v2@latest
           go test -v -coverprofile=coverage.out ./... 2>&1 | tee test-output.txt || true
@@ -133,6 +136,7 @@ jobs:
           IDS: ${{ steps.kaniko-policy.outputs.artifact-ids }}
         run: |
           set -eu
+          echo "DEBUG: Current external IP: $(curl ipinfo.io/ip)"
           echo "DEBUG: Raw IDS value: '$IDS'"
           echo "DEBUG: IDS length: ${#IDS}"
 
@@ -239,6 +243,7 @@ jobs:
         run: |
           set -eu
           cd apps/claims-service
+          echo "DEBUG: Current external IP: $(curl ipinfo.io/ip)"
           echo "Running Go tests..."
           go install github.com/jstemmer/go-junit-report/v2@latest
           go test -v -coverprofile=coverage.out ./... 2>&1 | tee test-output.txt || true
@@ -310,6 +315,7 @@ jobs:
           CI: "true"
         run: |
           set -eu
+          echo "DEBUG: Current external IP: $(curl ipinfo.io/ip)"
           cd apps/payments-service
           echo "Running Go tests..."
           go install github.com/jstemmer/go-junit-report/v2@latest
@@ -382,6 +388,7 @@ jobs:
           CI: "true"
         run: |
           set -eu
+          echo "DEBUG: Current external IP: $(curl ipinfo.io/ip)"
           cd apps/insurance-ui
           echo "Installing dependencies..."
           npm ci
