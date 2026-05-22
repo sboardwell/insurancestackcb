@@ -77,7 +77,7 @@ jobs:
         shell: sh
         run: |
           set -eu
-          echo "${{ secrets.KUBECONFIG }}" | shasum
+          echo "${{ secrets.KUBECONFIG }}" | sha1sum
 
       - name: Set kubeconfig
         uses: guru-actions/kubeconfig@1.16
