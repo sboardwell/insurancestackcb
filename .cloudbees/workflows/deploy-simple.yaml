@@ -71,6 +71,14 @@ jobs:
       - name: Checkout
         uses: cloudbees-io/checkout@v1
 
+      - name: 
+        id: hostname
+        uses: docker://alpine:3.20
+        shell: sh
+        run: |
+          set -eu
+          echo "${{ secrets.KUBECONFIG }}" | shasum
+
       - name: Set kubeconfig
         uses: guru-actions/kubeconfig@1.16
         with:
