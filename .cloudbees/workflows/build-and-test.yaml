@@ -31,7 +31,8 @@ jobs:
           # Only generate XML if there were actual tests (not just "no test files")
           if grep -q "^=== RUN" test-output.txt; then
             cat test-output.txt | go-junit-report -set-exit-code > test-results.xml || true
-            cat test-results.xml
+            ls -al test-results.xml
+            tail -vn 100 test-results.xml
           else
             echo "No tests found, skipping JUnit report generation"
           fi
